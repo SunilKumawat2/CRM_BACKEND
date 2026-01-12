@@ -101,12 +101,6 @@ const roomSchema = new mongoose.Schema(
     tags: [{ type: String }],
     images: [{ type: String }],
 
-    /* 🔹 ROOM IMAGES (5 PARAMETERS) */
-    roomImage1: { type: String, default: "" },
-    roomImage2: { type: String, default: "" },
-    roomImage3: { type: String, default: "" },
-    roomImage4: { type: String, default: "" },
-    roomImage5: { type: String, default: "" },
 
     /* 🔹 Seasonal Rates */
     seasonalRates: [seasonalRateSchema],

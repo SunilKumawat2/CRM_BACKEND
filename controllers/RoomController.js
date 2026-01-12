@@ -13,14 +13,10 @@ const createRoom = async (req, res) => {
         message: "Room number already exists",
       });
     }
-
+    const images = req.files?.map(file => file.filename) || [];
     const room = await Room.create({
       ...data,
-      roomImage1: req.files?.roomImage1?.[0]?.filename || "",
-      roomImage2: req.files?.roomImage2?.[0]?.filename || "",
-      roomImage3: req.files?.roomImage3?.[0]?.filename || "",
-      roomImage4: req.files?.roomImage4?.[0]?.filename || "",
-      roomImage5: req.files?.roomImage5?.[0]?.filename || "",
+      images,
       createdBy: req.adminId,
     });
 
@@ -91,6 +87,32 @@ const getRooms = async (req, res) => {
   } catch (error) {
     console.error("Get Rooms Error:", error);
     return res.status(500).json({ status: 500, message: "Server error fetching rooms" });
+  }
+};
+
+// 🟡 Get Rooms with Pagination + Filters
+const getRelatedRooms = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the current room
+    const currentRoom = await Room.findById(id);
+    if (!currentRoom) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    // Find related rooms
+    const relatedRooms = await Room.find({
+      _id: { $ne: id }, // exclude current room
+      roomType: currentRoom.roomType, // same type
+      roomView: currentRoom.roomView, // same view (optional)
+      isAvailable: true,
+    }).limit(5); // limit to 5 rooms
+
+    res.status(200).json({ relatedRooms });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error fetching related rooms" });
   }
 };
 
@@ -401,5 +423,6 @@ module.exports = {
   deleteRoom,
   getUserRooms,
   updateRoomStatus,
-  getUserRoomById
+  getUserRoomById,
+  getRelatedRooms
 };
