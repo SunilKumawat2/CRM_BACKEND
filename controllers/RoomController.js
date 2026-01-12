@@ -3,19 +3,38 @@ const Room = require("../models/Room");
 // 🟢 Create Room
 const createRoom = async (req, res) => {
   try {
-    const roomData = req.body;
-    roomData.createdBy = req.adminId;
+    const data = req.body;
 
-    const existingRoom = await Room.findOne({ roomNumber: roomData.roomNumber });
-    if (existingRoom) {
-      return res.status(400).json({ status: 400, message: "Room number already exists" });
+    // Check unique room number
+    const exists = await Room.findOne({ roomNumber: data.roomNumber });
+    if (exists) {
+      return res.status(400).json({
+        status: 400,
+        message: "Room number already exists",
+      });
     }
 
-    const room = await Room.create(roomData);
-    res.status(201).json({ status: 201, message: "Room created successfully", data: room });
+    const room = await Room.create({
+      ...data,
+      roomImage1: req.files?.roomImage1?.[0]?.filename || "",
+      roomImage2: req.files?.roomImage2?.[0]?.filename || "",
+      roomImage3: req.files?.roomImage3?.[0]?.filename || "",
+      roomImage4: req.files?.roomImage4?.[0]?.filename || "",
+      roomImage5: req.files?.roomImage5?.[0]?.filename || "",
+      createdBy: req.adminId,
+    });
+
+    return res.status(201).json({
+      status: 201,
+      message: "Room created successfully",
+      data: room,
+    });
   } catch (error) {
     console.error("Create Room Error:", error);
-    res.status(500).json({ status: 500, message: "Server error creating room" });
+    return res.status(500).json({
+      status: 500,
+      message: "Server error creating room",
+    });
   }
 };
 
@@ -75,6 +94,154 @@ const getRooms = async (req, res) => {
   }
 };
 
+// 🟢 Get Rooms for Users (with filters)
+const getUserRooms = async (req, res) => {
+  try {
+    const {
+      search = "",
+      roomType = "",
+      floorLevel = "",
+      roomView = "",
+      minAdults,
+      maxAdults,
+
+      /* 💰 PRICE FILTER */
+      minBaseRate,
+      maxBaseRate,
+
+      amenities = "",
+      isAvailable = "true",
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const query = {};
+
+    /* 🔍 Search by room number */
+    if (search.trim()) {
+      query.roomNumber = { $regex: search, $options: "i" };
+    }
+
+    /* 🛏 Room Type */
+    if (roomType.trim()) {
+      query.roomType = roomType;
+    }
+
+    /* 🏢 Floor Level */
+    if (floorLevel.trim()) {
+      query.floorLevel = floorLevel;
+    }
+
+    /* 🌆 Room View */
+    if (roomView.trim()) {
+      query.roomView = roomView;
+    }
+
+    /* 👨‍👩‍👧 Occupancy */
+    if (minAdults || maxAdults) {
+      query.maxAdults = {};
+      if (minAdults) query.maxAdults.$gte = Number(minAdults);
+      if (maxAdults) query.maxAdults.$lte = Number(maxAdults);
+    }
+
+    /* 💰 Base Rate Filter */
+    if (minBaseRate || maxBaseRate) {
+      query.baseRate = {};
+      if (minBaseRate) query.baseRate.$gte = Number(minBaseRate);
+      if (maxBaseRate) query.baseRate.$lte = Number(maxBaseRate);
+    }
+
+    /* 🧾 Amenities */
+    if (amenities.trim()) {
+      const amenityArray = amenities
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+
+      if (amenityArray.length) {
+        query.amenities = { $all: amenityArray };
+      }
+    }
+
+    /* ✅ Availability */
+    if (isAvailable === "true") query.isAvailable = true;
+    if (isAvailable === "false") query.isAvailable = false;
+
+    /* 📄 Pagination */
+    const skip = (Math.max(1, Number(page)) - 1) * Number(limit);
+
+    const [rooms, total] = await Promise.all([
+      Room.find(query)
+        .select("-createdBy -__v")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Room.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      status: 200,
+      message: "Rooms fetched successfully",
+      data: rooms,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    console.error("Get User Rooms Error:", error);
+    return res
+      .status(500)
+      .json({ status: 500, message: "Server error fetching rooms" });
+  }
+};
+
+// 🟢 Get Single Room Details (User)
+const getUserRoomById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 🔎 Validate Mongo ObjectId
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        status: 400,
+        message: "Invalid room ID",
+      });
+    }
+
+    const room = await Room.findById(id)
+      .select("-createdBy -__v");
+
+    if (!room) {
+      return res.status(404).json({
+        status: 404,
+        message: "Room not found",
+      });
+    }
+
+    // 💰 Calculate final price
+    const finalPrice =
+      room.discountedPrice > 0
+        ? room.baseRate - room.discountedPrice
+        : room.baseRate;
+
+    return res.status(200).json({
+      status: 200,
+      message: "Room details fetched successfully",
+      data: {
+        ...room.toObject(),
+        finalPrice,
+      },
+    });
+  } catch (error) {
+    console.error("Get Room By ID Error:", error);
+    return res.status(500).json({
+      status: 500,
+      message: "Server error fetching room details",
+    });
+  }
+};
+
 
 // 🟣 Get Single Room
 const getRoomById = async (req, res) => {
@@ -91,15 +258,109 @@ const getRoomById = async (req, res) => {
 // 🟠 Update Room
 const updateRoom = async (req, res) => {
   try {
-    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!room) return res.status(404).json({ status: 404, message: "Room not found" });
+    const { id } = req.params;
+    const payload = req.body;
 
-    res.status(200).json({ status: 200, message: "Room updated successfully", data: room });
+    // 1️⃣ Find room
+    const room = await Room.findById(id);
+    if (!room) {
+      return res.status(404).json({
+        status: 404,
+        message: "Room not found",
+      });
+    }
+
+    // 2️⃣ Prevent duplicate room number
+    if (
+      payload.roomNumber &&
+      payload.roomNumber !== room.roomNumber
+    ) {
+      const exists = await Room.findOne({
+        roomNumber: payload.roomNumber,
+      });
+
+      if (exists) {
+        return res.status(400).json({
+          status: 400,
+          message: "Room number already exists",
+        });
+      }
+    }
+
+    // 3️⃣ Fields allowed to update
+    const allowedFields = [
+      "roomNumber",
+      "roomType",
+      "roomView",
+      "floorLevel",
+      "nearElevator",
+
+      "baseRate",
+      "discountedPrice",
+      "payAtHotel",
+      "freeCancellation",
+      "refundable",
+
+      "maxAdults",
+      "maxChildren",
+      "maxOccupancy",
+      "extraBedAllowed",
+
+      "bedType",
+      "numberOfBeds",
+      "hasLivingArea",
+      "hasBalcony",
+
+      "bathtub",
+      "jacuzzi",
+      "hairDryer",
+
+      "wheelchairAccessible",
+      "groundFloor",
+      "seniorFriendly",
+
+      "smokingAllowed",
+      "earlyCheckin",
+      "lateCheckout",
+      "hourlyStay",
+      "longStayFriendly",
+
+      "rating",
+      "tags",
+      "amenities",
+      "images",
+
+      "seasonalRates",
+      "description",
+
+      "isAvailable",
+      "housekeepingStatus",
+    ];
+
+    // 4️⃣ Assign only allowed fields
+    allowedFields.forEach((field) => {
+      if (payload[field] !== undefined) {
+        room[field] = payload[field];
+      }
+    });
+
+    // 5️⃣ Save
+    await room.save();
+
+    res.status(200).json({
+      status: 200,
+      message: "Room updated successfully",
+      data: room,
+    });
   } catch (error) {
     console.error("Update Room Error:", error);
-    res.status(500).json({ status: 500, message: "Server error updating room" });
+    res.status(500).json({
+      status: 500,
+      message: "Server error updating room",
+    });
   }
 };
+
 
 // 🔴 Delete Room
 const deleteRoom = async (req, res) => {
@@ -138,5 +399,7 @@ module.exports = {
   getRoomById,
   updateRoom,
   deleteRoom,
+  getUserRooms,
   updateRoomStatus,
+  getUserRoomById
 };
