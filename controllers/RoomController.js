@@ -123,7 +123,7 @@ const getRelatedRooms = async (req, res) => {
   }
 };
 
-// 🟢 Get Rooms for Users (with filters)
+// 🟢 Get Rooms for Users (with filters) ----->
 const getUserRooms = async (req, res) => {
   try {
     const {
