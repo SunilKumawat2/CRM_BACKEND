@@ -24,13 +24,13 @@ const roomSchema = new mongoose.Schema(
 
     roomType: {
       type: String,
-      enum: ["Standard", "Deluxe", "Suite"],
+      enum: ["Standard", "Deluxe", "Suite","Executive","Penthouse"],
       required: true,
     },
 
     roomView: {
       type: String,
-      enum: ["City", "Sea", "Garden"],
+      enum: ["City", "Sea", "Garden","Mountain","Pool"],
       default: "City",
     },
 

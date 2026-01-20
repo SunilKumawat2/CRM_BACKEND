@@ -13,7 +13,7 @@ const createRoom = async (req, res) => {
         message: "Room number already exists",
       });
     }
-    const images = req.files?.map(file => file.filename) || [];
+    const images = req.files?.map((file) => file.filename) || [];
     const room = await Room.create({
       ...data,
       images,
@@ -42,7 +42,7 @@ const getRooms = async (req, res) => {
       type = "",
       isAvailable,
       page = 1,
-      limit = 20
+      limit = 20,
     } = req.query;
 
     const q = {};
@@ -83,10 +83,11 @@ const getRooms = async (req, res) => {
       limit: parseInt(limit),
       totalPages: Math.ceil(total / limit),
     });
-
   } catch (error) {
     console.error("Get Rooms Error:", error);
-    return res.status(500).json({ status: 500, message: "Server error fetching rooms" });
+    return res
+      .status(500)
+      .json({ status: 500, message: "Server error fetching rooms" });
   }
 };
 
@@ -109,7 +110,13 @@ const getRelatedRooms = async (req, res) => {
       isAvailable: true,
     }).limit(5); // limit to 5 rooms
 
-    res.status(200).json({ relatedRooms });
+    res
+      .status(200)
+      .json({
+        status: 200,
+        msg: "Successfully fetch the realted rooms",
+        data: relatedRooms,
+      });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error fetching related rooms" });
@@ -231,8 +238,7 @@ const getUserRoomById = async (req, res) => {
       });
     }
 
-    const room = await Room.findById(id)
-      .select("-createdBy -__v");
+    const room = await Room.findById(id).select("-createdBy -__v");
 
     if (!room) {
       return res.status(404).json({
@@ -264,16 +270,18 @@ const getUserRoomById = async (req, res) => {
   }
 };
 
-
 // 🟣 Get Single Room
 const getRoomById = async (req, res) => {
   try {
     const room = await Room.findById(req.params.id);
-    if (!room) return res.status(404).json({ status: 404, message: "Room not found" });
+    if (!room)
+      return res.status(404).json({ status: 404, message: "Room not found" });
     res.status(200).json({ status: 200, data: room });
   } catch (error) {
     console.error("Get Room Error:", error);
-    res.status(500).json({ status: 500, message: "Server error fetching room" });
+    res
+      .status(500)
+      .json({ status: 500, message: "Server error fetching room" });
   }
 };
 
@@ -293,10 +301,7 @@ const updateRoom = async (req, res) => {
     }
 
     // 2️⃣ Prevent duplicate room number
-    if (
-      payload.roomNumber &&
-      payload.roomNumber !== room.roomNumber
-    ) {
+    if (payload.roomNumber && payload.roomNumber !== room.roomNumber) {
       const exists = await Room.findOne({
         roomNumber: payload.roomNumber,
       });
@@ -383,17 +388,19 @@ const updateRoom = async (req, res) => {
   }
 };
 
-
 // 🔴 Delete Room
 const deleteRoom = async (req, res) => {
   try {
     const room = await Room.findByIdAndDelete(req.params.id);
-    if (!room) return res.status(404).json({ status: 404, message: "Room not found" });
+    if (!room)
+      return res.status(404).json({ status: 404, message: "Room not found" });
 
     res.status(200).json({ status: 200, message: "Room deleted successfully" });
   } catch (error) {
     console.error("Delete Room Error:", error);
-    res.status(500).json({ status: 500, message: "Server error deleting room" });
+    res
+      .status(500)
+      .json({ status: 500, message: "Server error deleting room" });
   }
 };
 
@@ -402,16 +409,21 @@ const updateRoomStatus = async (req, res) => {
   try {
     const { isAvailable, housekeepingStatus } = req.body;
     const room = await Room.findById(req.params.id);
-    if (!room) return res.status(404).json({ status: 404, message: "Room not found" });
+    if (!room)
+      return res.status(404).json({ status: 404, message: "Room not found" });
 
     if (isAvailable !== undefined) room.isAvailable = isAvailable;
     if (housekeepingStatus) room.housekeepingStatus = housekeepingStatus;
 
     await room.save();
-    res.status(200).json({ status: 200, message: "Room status updated", data: room });
+    res
+      .status(200)
+      .json({ status: 200, message: "Room status updated", data: room });
   } catch (error) {
     console.error("Update Room Status Error:", error);
-    res.status(500).json({ status: 500, message: "Server error updating room status" });
+    res
+      .status(500)
+      .json({ status: 500, message: "Server error updating room status" });
   }
 };
 
@@ -424,5 +436,5 @@ module.exports = {
   getUserRooms,
   updateRoomStatus,
   getUserRoomById,
-  getRelatedRooms
+  getRelatedRooms,
 };

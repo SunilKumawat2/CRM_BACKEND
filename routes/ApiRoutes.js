@@ -85,7 +85,7 @@ router.get("/get-categories", auth, permissions("category_view"), CategoryContro
 router.post("/create-room",auth,permissions("room_create"),upload.array("images", 5),RoomController.createRoom);
 router.get("/get-rooms", auth, permissions("room_view"), RoomController.getRooms);
 router.get("/get-room/:id", auth, permissions("room_view"), RoomController.getRoomById);
-router.get("/rooms/:id/related",auth, permissions("room_view"), RoomController.getRelatedRooms);
+router.get("/rooms/:id/related", RoomController.getRelatedRooms);
 router.put("/update-room/:id", auth, permissions("room_edit"), RoomController.updateRoom);
 router.delete("/delete-room/:id", auth, permissions("room_delete"), RoomController.deleteRoom);
 router.patch("/update-room-status/:id", auth, permissions("room_edit"), RoomController.updateRoomStatus);
